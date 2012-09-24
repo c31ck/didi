@@ -163,7 +163,6 @@ namespace :deploy do
         CMD
       if civicrm_support
         run <<-CMD
-          ln -nfs #{sf} #{release_files[i]} &&
           ln -nfs #{shared_civicrm_settings[i]} #{release_civicrm_settings[i]}
           CMD
       end
