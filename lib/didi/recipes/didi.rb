@@ -28,6 +28,7 @@ set :drupal_version,    '7'
 set :keep_releases,     5
 set :use_sudo,          false
 
+set :civicrm_support,    false
 set :domain,            'default'
 set :db_host,           'localhost'
 set :drupal_path,       'drupal'
@@ -47,24 +48,28 @@ ssh_options[:forward_agent] = true
 # changes if you do decide to muck with these!
 # =========================================================================
 _cset :settings,          'settings.php'
+_cset :civicrm_settings,  'civicrm.settings.php'
 _cset :files,             'files'
 _cset :dbbackups,         'db_backups'
 _cset :drush_path,        ''
 
-_cset(:shared_settings) { domain.to_a.map { |d| File.join(shared_path, d, settings) } }
-_cset(:shared_files)    { domain.to_a.map { |d| File.join(shared_path, d, files) } }
-_cset(:dbbackups_path)  { domain.to_a.map { |d| File.join(deploy_to, dbbackups, d) } }
-_cset(:drush)           { "drush -r #{current_path}" + (domain == 'default' ? '' : " -l #{domain}") }  # FIXME: not in use?
+_cset(:shared_settings)                     { domain.to_a.map { |d| File.join(shared_path, d, settings) } }
+_cset(:shared_civicrm_settings)             { domain.to_a.map { |d| File.join(shared_path, d, civicrm_settings) } }
+_cset(:shared_files)                        { domain.to_a.map { |d| File.join(shared_path, d, files) } }
+_cset(:dbbackups_path)                      { domain.to_a.map { |d| File.join(deploy_to, dbbackups, d) } }
+_cset(:drush)                               { "drush -r #{current_path}" + (domain == 'default' ? '' : " -l #{domain}") }  # FIXME: not in use?
 
-_cset(:release_settings)              { domain.to_a.map { |d| File.join(release_path, drupal_path, 'sites', d, settings) } }
-_cset(:release_files)                 { domain.to_a.map { |d| File.join(release_path, drupal_path, 'sites', d, files) } }
-_cset(:release_domain)                { domain.to_a.map { |d| File.join(release_path, drupal_path, 'sites', d) } }
+_cset(:release_settings)                    { domain.to_a.map { |d| File.join(release_path, drupal_path, 'sites', d, settings) } }
+_cset(:release_civicrm_settings)            { domain.to_a.map { |d| File.join(release_path, drupal_path, 'sites', d, civicrm_settings) } }
+_cset(:release_files)                       { domain.to_a.map { |d| File.join(release_path, drupal_path, 'sites', d, files) } }
+_cset(:release_domain)                      { domain.to_a.map { |d| File.join(release_path, drupal_path, 'sites', d) } }
 
-_cset(:previous_release_settings)     { releases.length > 1 ? domain.to_a.map { |d| File.join(previous_release, drupal_path, 'sites', d, settings) } : nil }
-_cset(:previous_release_files)        { releases.length > 1 ? domain.to_a.map { |d| File.join(previous_release, drupal_path, 'sites', d, files) } : nil }
-_cset(:previous_release_domain)       { releases.length > 1 ? domain.to_a.map { |d| File.join(previous_release, drupal_path, 'sites', d) } : nil }
+_cset(:previous_release_settings)           { releases.length > 1 ? domain.to_a.map { |d| File.join(previous_release, drupal_path, 'sites', d, settings) } : nil }
+_cset(:previous_release_civicrm_settings)   { releases.length > 1 ? domain.to_a.map { |d| File.join(previous_release, drupal_path, 'sites', d, settings) } : nil }
+_cset(:previous_release_files)              { releases.length > 1 ? domain.to_a.map { |d| File.join(previous_release, drupal_path, 'sites', d, files) } : nil }
+_cset(:previous_release_domain)             { releases.length > 1 ? domain.to_a.map { |d| File.join(previous_release, drupal_path, 'sites', d) } : nil }
 
-_cset(:is_multisite)                  { domain.to_a.size > 1 }
+_cset(:is_multisite)                        { domain.to_a.size > 1 }
 
 # =========================================================================
 # Extra dependency checks
@@ -139,6 +144,9 @@ namespace :deploy do
       if previous_release
         #FIXME: won't work on mulitsite config
         run "ln -nfs #{shared_files} #{previous_release_files} && ln -nfs #{shared_settings} #{previous_release_settings}"
+        if civicrm_support
+          run "ln -nfs #{shared_civicrm_settings} #{previous_release_civicrm_settings}"
+        end
       else
         logger.important "no previous release to rollback to, rollback of drupal shared data skipped."
       end
@@ -153,6 +161,12 @@ namespace :deploy do
         ln -nfs #{sf} #{release_files[i]} &&
         ln -nfs #{shared_settings[i]} #{release_settings[i]}
         CMD
+      if civicrm_support
+        run <<-CMD
+          ln -nfs #{sf} #{release_files[i]} &&
+          ln -nfs #{shared_civicrm_settings[i]} #{release_civicrm_settings[i]}
+          CMD
+      end
     end
   end
 
